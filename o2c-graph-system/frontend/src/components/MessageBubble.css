@@ -1,0 +1,138 @@
+/* Message Bubble Styling */
+.message-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* User Message */
+.user-message {
+  align-items: flex-end;
+}
+
+.user-message .message-content {
+  background: linear-gradient(135deg, #6366F1, #818CF8);
+  max-width: 85%;
+}
+
+.user-message .message-content p {
+  color: white;
+}
+
+/* Assistant Message */
+.assistant-message {
+  align-items: flex-start;
+}
+
+.assistant-message .message-content {
+  background: rgba(30, 35, 50, 0.6);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  max-width: 95%;
+}
+
+.assistant-message .message-content p {
+  color: rgba(224, 231, 255, 0.85);
+}
+
+/* Message Content */
+.message-content {
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+.message-content p {
+  margin: 0;
+  padding: 0;
+}
+
+/* Query Type Badge */
+.message-badge {
+  align-self: flex-start;
+  display: inline-block;
+  padding: 4px 10px;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(99, 102, 241, 0.8);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin: 0 4px 0 2px;
+}
+
+/* Highlighted Nodes */
+.highlighted-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: 2px;
+}
+
+.node-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: 'Monaco', 'Courier New', monospace;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.node-tag:hover {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: rgba(168, 85, 247, 0.5);
+}
+
+.node-type {
+  color: rgba(168, 85, 247, 0.7);
+  font-weight: 600;
+}
+
+.node-id {
+  color: rgba(224, 231, 255, 0.6);
+}
+
+.node-more {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  color: rgba(224, 231, 255, 0.4);
+  font-weight: 500;
+  padding: 4px 8px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .user-message .message-content {
+    max-width: 90%;
+  }
+
+  .assistant-message .message-content {
+    max-width: 100%;
+  }
+
+  .message-content {
+    font-size: 12px;
+    padding: 10px 12px;
+  }
+}

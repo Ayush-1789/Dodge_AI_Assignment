@@ -1,0 +1,45 @@
+/* App Layout */
+.app-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+  background: linear-gradient(to bottom, #0B0E14, #0F1620);
+  color: #E0E7FF;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+
+.app-main {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  height: calc(100vh - 64px);
+  gap: 0;
+  overflow: hidden;
+}
+
+.graph-container {
+  flex: 1;
+  position: relative;
+  background: #0B0E14;
+  border-right: 1px solid rgba(99, 102, 241, 0.1);
+  overflow: hidden;
+}
+
+.chat-container {
+  width: 360px;
+  background: linear-gradient(to bottom, rgba(15, 18, 25, 0.8), rgba(11, 14, 20, 0.9));
+  border-left: 1px solid rgba(99, 102, 241, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  backdrop-filter: blur(16px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .chat-container {
+    width: 320px;
+  }
+}
