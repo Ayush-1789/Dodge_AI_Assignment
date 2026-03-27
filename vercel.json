@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "npm --prefix o2c-graph-system/frontend ci",
+  "buildCommand": "npm --prefix o2c-graph-system/frontend run build",
+  "outputDirectory": "o2c-graph-system/frontend/dist",
+  "routes": [
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/.*",
+      "dest": "/index.html"
+    }
+  ]
+}
