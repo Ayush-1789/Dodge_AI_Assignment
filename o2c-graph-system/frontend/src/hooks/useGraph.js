@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import { buildApiUrl } from '../config/api'
 
 export function useGraph() {
   const [graphData, setGraphData] = useState(null)
@@ -9,7 +10,7 @@ export function useGraph() {
   useEffect(() => {
     const fetchGraph = async () => {
       try {
-        const response = await axios.get('/api/graph/')
+        const response = await axios.get(buildApiUrl('/api/graph/'))
         setGraphData(response.data)
         setError(null)
       } catch (err) {
