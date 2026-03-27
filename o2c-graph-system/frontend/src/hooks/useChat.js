@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import axios from 'axios'
+import { buildApiUrl } from '../config/api'
 
 export function useChat() {
   const [loading, setLoading] = useState(false)
@@ -10,7 +11,7 @@ export function useChat() {
     setError(null)
 
     try {
-      const response = await axios.post('/api/chat/', {
+      const response = await axios.post(buildApiUrl('/api/chat/'), {
         message,
         conversation_history: history
       })
