@@ -107,6 +107,42 @@ class GeminiClient:
         selected = env_model or "gemini-1.5-flash"
         logger.warning(f"Falling back to configured Gemini model without validation: {selected}")
         return selected
+
+    @staticmethod
+    def _normalize_history_for_gemini(history: List[Dict] | None) -> List[Dict[str, Any]]:
+        """Convert mixed chat history payloads into Gemini-compatible contents.
+
+        Accepts history entries shaped as either:
+        - {"role": "user|assistant|model", "content": "..."}
+        - {"role": "user|assistant|model", "parts": [...]} (already compatible)
+        """
+        normalized: List[Dict[str, Any]] = []
+
+        for item in history or []:
+            if not isinstance(item, dict):
+                continue
+
+            role = str(item.get("role") or "user").strip().lower()
+            if role == "assistant":
+                role = "model"
+            elif role not in {"user", "model"}:
+                # Treat unknown roles as user utterances.
+                role = "user"
+
+            if "parts" in item and isinstance(item.get("parts"), list):
+                parts = item.get("parts")
+            else:
+                content = item.get("content")
+                if content is None:
+                    continue
+                text = str(content).strip()
+                if not text:
+                    continue
+                parts = [{"text": text}]
+
+            normalized.append({"role": role, "parts": parts})
+
+        return normalized
     
     def generate_query(
         self,
@@ -139,7 +175,8 @@ class GeminiClient:
                 generation_config=GENERATION_CONFIG
             )
             
-            messages = (history or []) + [{"role": "user", "parts": [user_message]}]
+            messages = self._normalize_history_for_gemini(history)
+            messages.append({"role": "user", "parts": [{"text": user_message}]})
             response = model.generate_content(messages)
             
             # Parse JSON response

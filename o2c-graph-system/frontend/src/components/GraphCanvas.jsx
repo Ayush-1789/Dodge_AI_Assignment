@@ -365,6 +365,7 @@ export default function GraphCanvas({ onNodeClick, highlightedNodes = [], focuse
   const [fullFanoutEnabled, setFullFanoutEnabled] = useState(false)
   const [expandedHubIds, setExpandedHubIds] = useState(new Set())
   const [previewNode, setPreviewNode] = useState(null)
+  const [responseFocusSuppressed, setResponseFocusSuppressed] = useState(false)
 
   const highlightedSet = useMemo(() => new Set(highlightedNodes.map((id) => String(id))), [highlightedNodes])
   const focusedNodeSet = useMemo(() => new Set(focusedNodes.map((id) => String(id))), [focusedNodes])
@@ -388,7 +389,7 @@ export default function GraphCanvas({ onNodeClick, highlightedNodes = [], focuse
     return scoped.length > 0 ? new Set(scoped) : null
   }, [focusedNodeSet, normalizedNodeIdSet])
 
-  const effectiveFocusSet = focusNeighborhood || responseFocusSet
+  const effectiveFocusSet = focusNeighborhood || (responseFocusSuppressed ? null : responseFocusSet)
 
   const hoverNeighborhood = useMemo(() => {
     if (!hoveredNodeId || !adjacency.has(hoveredNodeId)) return null
@@ -404,6 +405,27 @@ export default function GraphCanvas({ onNodeClick, highlightedNodes = [], focuse
       positionCache: positionCacheRef.current
     })
   }, [normalizedGraph, focusNeighborhood, highlightedSet, fullFanoutEnabled, expandedHubIds])
+
+  const previewMetrics = useMemo(() => {
+    if (!previewNode?.id) {
+      return { inDegree: 0, outDegree: 0, totalDegree: 0 }
+    }
+
+    let inDegree = 0
+    let outDegree = 0
+    const nodeId = previewNode.id
+
+    for (const link of normalizedGraph.links) {
+      if (link.source === nodeId) outDegree += 1
+      if (link.target === nodeId) inDegree += 1
+    }
+
+    return {
+      inDegree,
+      outDegree,
+      totalDegree: inDegree + outDegree
+    }
+  }, [normalizedGraph.links, previewNode])
 
   useEffect(() => {
     visibleGraphRef.current = visibleGraph
@@ -474,6 +496,9 @@ export default function GraphCanvas({ onNodeClick, highlightedNodes = [], focuse
       pendingResponseFocusRef.current = false
       return
     }
+
+    // A new response focus payload should re-enable response-based focusing.
+    setResponseFocusSuppressed(false)
 
     pendingResponseFocusRef.current = true
     autoFitPendingRef.current = false
@@ -587,6 +612,8 @@ export default function GraphCanvas({ onNodeClick, highlightedNodes = [], focuse
     setHoveredNodeId(null)
     setPreviewNode(null)
     setExpandedHubIds(new Set())
+    setResponseFocusSuppressed(true)
+    pendingResponseFocusRef.current = false
     autoFitPendingRef.current = true
     fgRef.current.d3ReheatSimulation()
     fgRef.current.zoomToFit(650, 120)
@@ -853,6 +880,24 @@ export default function GraphCanvas({ onNodeClick, highlightedNodes = [], focuse
                 </div>
               ))}
           </div>
+
+          <section className="graph-node-preview-section">
+            <h4 className="graph-node-preview-section-title">Graph Metrics</h4>
+            <div className="graph-node-preview-metrics">
+              <div className="graph-node-metric-card">
+                <div className="graph-node-metric-label">Incoming Edges</div>
+                <div className="graph-node-metric-value">{previewMetrics.inDegree}</div>
+              </div>
+              <div className="graph-node-metric-card">
+                <div className="graph-node-metric-label">Outgoing Edges</div>
+                <div className="graph-node-metric-value">{previewMetrics.outDegree}</div>
+              </div>
+              <div className="graph-node-metric-card">
+                <div className="graph-node-metric-label">Total Degree</div>
+                <div className="graph-node-metric-value">{previewMetrics.totalDegree}</div>
+              </div>
+            </div>
+          </section>
         </div>
       )}
 

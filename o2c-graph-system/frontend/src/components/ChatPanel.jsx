@@ -10,9 +10,16 @@ const EXAMPLE_QUERIES = [
   'List high-value orders'
 ]
 
-export default function ChatPanel({ onHighlightNodes, onFocusNodes, onSelectNode, selectedNode }) {
+const INITIAL_ASSISTANT_MESSAGE = {
+  role: 'assistant',
+  content: 'Hello! How can I help you with your Order-to-Cash data today?',
+  highlighted_nodes: [],
+  query_type: 'greeting'
+}
+
+export default function ChatPanel({ onHighlightNodes, onFocusNodes }) {
   const [input, setInput] = useState('')
-  const [messages, setMessages] = useState([])
+  const [messages, setMessages] = useState([INITIAL_ASSISTANT_MESSAGE])
   const messagesEndRef = useRef(null)
   const { sendMessage, loading, error } = useChat()
 
@@ -65,13 +72,13 @@ export default function ChatPanel({ onHighlightNodes, onFocusNodes, onSelectNode
 
       {/* Messages Area */}
       <div className="chat-messages">
-        {messages.length === 0 ? (
-          <div className="chat-empty">
-            <div className="empty-icon">💬</div>
-            <h3>Start Exploring</h3>
-            <p>Ask questions about your O2C data</p>
-            
-            <div className="example-queries">
+        <div className="messages-list">
+          {messages.map((msg, idx) => (
+            <MessageBubble key={idx} message={msg} />
+          ))}
+
+          {messages.length <= 1 && (
+            <div className="example-queries" style={{ marginTop: '8px' }}>
               {EXAMPLE_QUERIES.map((query, idx) => (
                 <button
                   key={idx}
@@ -83,15 +90,10 @@ export default function ChatPanel({ onHighlightNodes, onFocusNodes, onSelectNode
                 </button>
               ))}
             </div>
-          </div>
-        ) : (
-          <div className="messages-list">
-            {messages.map((msg, idx) => (
-              <MessageBubble key={idx} message={msg} />
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        )}
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {/* Error Display */}

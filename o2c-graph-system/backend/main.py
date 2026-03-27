@@ -13,10 +13,20 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .database.init_db import init_database
-from .database.sql_executor import SQLExecutor
-from .graph.builder import get_builder
-from .api import chat, graph_data
+try:
+    from .database.init_db import init_database
+    from .database.sql_executor import SQLExecutor
+    from .graph.builder import get_builder
+    from .api import chat, graph_data
+except ImportError:
+    # Support running `python main.py` from inside backend/.
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from backend.database.init_db import init_database
+    from backend.database.sql_executor import SQLExecutor
+    from backend.graph.builder import get_builder
+    from backend.api import chat, graph_data
 
 # Configure logging
 logging.basicConfig(
@@ -154,9 +164,14 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
+    from pathlib import Path
+
+    current_dir = Path.cwd().resolve()
+    backend_dir = BACKEND_DIR.resolve()
+    app_ref = "main:app" if current_dir == backend_dir else "backend.main:app"
     
     uvicorn.run(
-        "backend.main:app",
+        app_ref,
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 8000)),
         reload=os.environ.get("ENV") != "production"

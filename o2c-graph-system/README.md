@@ -38,8 +38,6 @@ o2c-graph-system/
 │   ├── src/
 │   ├── package.json
 │   └── vite.config.js
-├── sap-o2c-data/
-├── run_backend.py
 └── README.md
 ```
 
@@ -75,27 +73,29 @@ ENV=development
 PORT=8000
 ```
 
+Start backend:
+
+```bash
+cd backend
+python main.py
+```
+
+Data ingestion behavior:
+- Automatic: On backend startup, if `backend/data/o2c.db` is missing or incomplete, data is rebuilt automatically from `sap-o2c-data`.
+- No separate ingestion file is required for normal usage.
+- Optional manual full rebuild:
+
+```bash
+cd backend
+python database/init_db.py
+```
+
 ### 2. Frontend Setup
 
 ```bash
 cd frontend
 npm install
 ```
-
-## Streamlined Run (Recommended)
-
-From repo root:
-
-```bash
-python run_backend.py --reload
-```
-
-What this does:
-- Starts FastAPI app
-- Rebuilds database automatically if missing or incomplete
-- Handles port fallback if requested port is already busy
-
-In another terminal:
 
 ```bash
 cd frontend
@@ -106,49 +106,22 @@ npm run dev
 
 - Frontend: `http://localhost:5173` (or next free Vite port)
 - Backend API: `http://localhost:8000`
-- OpenAPI docs: `http://localhost:8000/docs`
 - Health check: `http://localhost:8000/health`
-
-## API Endpoints
-
-- `POST /api/chat/`
-- `GET /api/graph/`
-- `GET /api/graph/node/{node_id}`
 
 ## Graph + Chat Behavior
 
-When the assistant returns `highlighted_nodes`, the frontend now:
+When the assistant returns `highlighted_nodes`, the frontend:
 - Highlights the source nodes
 - Focuses camera on those nodes
 - Keeps them easy to inspect and click for details
 
-## Development Notes
-
-- Backend should be started from repo root using `run_backend.py`
-- Frontend API calls are proxied by Vite (`/api` -> `http://localhost:8000`)
-- Do not commit secrets; `.env` is ignored
-
 ## Troubleshooting
 
-- `Port in use`: rerun backend with a different port:
+- `Port in use`: set a different `PORT` in `backend/.env` and restart:
 
-```bash
-python run_backend.py --reload --port 8010
+```env
+PORT=8010
 ```
 
 - `LLM service not available`: check `backend/.env` and ensure `GEMINI_API_KEY` is set
 - Empty graph: verify `sap-o2c-data` exists and backend startup logs show successful initialization
-
-## GitHub Initialization
-
-From repo root:
-
-```bash
-git init
-git add .
-git commit -m "Initial clean commit: O2C graph system"
-```
-
-## License
-
-Use your preferred license for publication (MIT is a common choice).
