@@ -11,6 +11,8 @@ from typing import Dict, List, Any
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview"
+
 
 def _truncate(value: Any, max_len: int = 280) -> str:
     """Safely truncate values for logs."""
@@ -68,19 +70,12 @@ class GeminiClient:
         return normalized
 
     def _resolve_model_name(self) -> str:
-        """Resolve a valid model name, preferring env override and known flash variants."""
-        env_model = os.environ.get("GEMINI_MODEL")
-        candidates = [
-            env_model,
-            "gemini-3-flash",
-            "gemini-1.5-flash",
-            "gemini-1.5-flash-latest",
-            "gemini-2.0-flash",
-            "gemini-2.0-flash-lite",
-            "gemini-2.5-flash",
-            "gemini-2.5-flash-lite",
-        ]
-        candidates = [name for name in candidates if name]
+        """Resolve model name with strict default/fallback behavior.
+
+        We intentionally do not auto-downgrade to older models.
+        """
+        env_model = (os.environ.get("GEMINI_MODEL") or "").strip()
+        selected = env_model or DEFAULT_GEMINI_MODEL
 
         try:
             available_models = list(genai.list_models())
@@ -89,23 +84,20 @@ class GeminiClient:
                 if "generateContent" in getattr(model, "supported_generation_methods", [])
             }
 
-            for candidate in candidates:
-                if candidate in available_names:
-                    logger.info(f"Using Gemini model: {candidate}")
-                    return candidate
-
-            if available_names:
-                selected = sorted(available_names)[0]
-                logger.warning(
-                    f"None of preferred Gemini models are available. Falling back to: {selected}"
-                )
+            if selected in available_names:
+                logger.info(f"Using Gemini model: {selected}")
                 return selected
+
+            logger.warning(
+                "Configured/default Gemini model '%s' not listed by API for this key. "
+                "Keeping strict model selection (no fallback to older models).",
+                selected,
+            )
 
         except Exception as e:
             logger.warning(f"Could not resolve model via list_models: {e}")
 
-        selected = env_model or "gemini-1.5-flash"
-        logger.warning(f"Falling back to configured Gemini model without validation: {selected}")
+        logger.warning(f"Using configured/default Gemini model without fallback: {selected}")
         return selected
 
     @staticmethod
@@ -169,13 +161,15 @@ class GeminiClient:
                 len(history or []),
             )
 
-            model = genai.GenerativeModel(
-                model_name=self.model_name,
-                system_instruction=system_prompt,
-                generation_config=GENERATION_CONFIG
+            model, system_prompt_inlined = self._create_model(
+                system_prompt=system_prompt,
+                generation_config=GENERATION_CONFIG,
+                stage_name="query",
             )
-            
+
             messages = self._normalize_history_for_gemini(history)
+            if system_prompt_inlined:
+                messages.append({"role": "user", "parts": [{"text": f"System instructions:\n{system_prompt}"}]})
             messages.append({"role": "user", "parts": [{"text": user_message}]})
             response = model.generate_content(messages)
             
@@ -241,10 +235,10 @@ class GeminiClient:
                 result_size,
             )
 
-            model = genai.GenerativeModel(
-                model_name=self.model_name,
-                system_instruction=system_prompt,
-                generation_config=GENERATION_CONFIG_SYNTHESIS
+            model, system_prompt_inlined = self._create_model(
+                system_prompt=system_prompt,
+                generation_config=GENERATION_CONFIG_SYNTHESIS,
+                stage_name="synthesis",
             )
             
             # Prepare synthesis prompt
@@ -255,6 +249,9 @@ Query executed: {json.dumps(query_spec)}
 
 Result data: {json.dumps(query_result, default=str)[:4000]}
 """
+
+            if system_prompt_inlined:
+                synthesis_input = f"System instructions:\n{system_prompt}\n\n{synthesis_input}"
             
             response = model.generate_content(synthesis_input)
             
@@ -292,3 +289,31 @@ Result data: {json.dumps(query_result, default=str)[:4000]}
                 _truncate(question),
             )
             return {"error": str(e)}
+
+    def _create_model(self, system_prompt: str, generation_config: Dict[str, Any], stage_name: str):
+        """Create a Gemini model with cross-version SDK compatibility.
+
+        Some older google-generativeai versions do not support `system_instruction`
+        in GenerativeModel.__init__. In that case, return a model without it and
+        signal callers to inline instructions into the prompt payload.
+        """
+        try:
+            model = genai.GenerativeModel(
+                model_name=self.model_name,
+                system_instruction=system_prompt,
+                generation_config=generation_config,
+            )
+            return model, False
+        except TypeError as exc:
+            if "system_instruction" not in str(exc):
+                raise
+
+            logger.warning(
+                "Gemini %s model init fallback: SDK does not support system_instruction; inlining prompt text",
+                stage_name,
+            )
+            model = genai.GenerativeModel(
+                model_name=self.model_name,
+                generation_config=generation_config,
+            )
+            return model, True

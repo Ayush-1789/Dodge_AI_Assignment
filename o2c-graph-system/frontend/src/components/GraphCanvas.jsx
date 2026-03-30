@@ -346,7 +346,12 @@ function buildVisibleGraph(normalized, options) {
   }
 }
 
-export default function GraphCanvas({ onNodeClick, highlightedNodes = [], focusedNodes = [] }) {
+export default function GraphCanvas({
+  onNodeClick,
+  highlightedNodes = [],
+  focusedNodes = [],
+  onClearResponseContext
+}) {
   const fgRef = useRef(null)
   const visibleGraphRef = useRef({ nodes: [], links: [] })
   const positionCacheRef = useRef(new Map())
@@ -607,6 +612,7 @@ export default function GraphCanvas({ onNodeClick, highlightedNodes = [], focuse
 
   const handleResetView = useCallback(() => {
     if (!fgRef.current) return
+    onClearResponseContext?.()
     setFocusEnabled(false)
     setFocusNodeId(null)
     setHoveredNodeId(null)
@@ -617,7 +623,7 @@ export default function GraphCanvas({ onNodeClick, highlightedNodes = [], focuse
     autoFitPendingRef.current = true
     fgRef.current.d3ReheatSimulation()
     fgRef.current.zoomToFit(650, 120)
-  }, [])
+  }, [onClearResponseContext])
 
   const handleToggleFocus = useCallback(() => {
     if (!focusNodeId) return
@@ -787,8 +793,17 @@ export default function GraphCanvas({ onNodeClick, highlightedNodes = [], focuse
 
     if (nearestNode) {
       handleNodeClick(nearestNode)
+      return
     }
-  }, [handleNodeClick])
+
+    // Clicks on empty canvas should clear answer-driven highlight/focus context.
+    onClearResponseContext?.()
+    setFocusEnabled(false)
+    setFocusNodeId(null)
+    setPreviewNode(null)
+    setResponseFocusSuppressed(true)
+    pendingResponseFocusRef.current = false
+  }, [handleNodeClick, onClearResponseContext])
 
   if (error) {
     return (

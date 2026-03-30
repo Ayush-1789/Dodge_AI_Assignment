@@ -19,9 +19,15 @@ const INITIAL_ASSISTANT_MESSAGE = {
 
 export default function ChatPanel({ onHighlightNodes, onFocusNodes }) {
   const [input, setInput] = useState('')
+  const [apiKey, setApiKey] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    return window.localStorage.getItem('gemini_api_key') || ''
+  })
   const [messages, setMessages] = useState([INITIAL_ASSISTANT_MESSAGE])
+  const [isKeyTesting, setIsKeyTesting] = useState(false)
+  const [keyTestResult, setKeyTestResult] = useState(null)
   const messagesEndRef = useRef(null)
-  const { sendMessage, loading, error } = useChat()
+  const { sendMessage, validateApiKey, loading, error } = useChat()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -37,13 +43,15 @@ export default function ChatPanel({ onHighlightNodes, onFocusNodes }) {
 
     const userInput = input.trim()
     setInput('')
+    onHighlightNodes?.([])
+    onFocusNodes?.([])
 
     // Add user message
     const userMsg = { role: 'user', content: userInput }
     setMessages(prev => [...prev, userMsg])
 
     // Get response
-    const response = await sendMessage(userInput, messages)
+    const response = await sendMessage(userInput, messages, apiKey)
     if (response) {
       const responseNodes = response.highlighted_nodes || []
       const assistantMsg = {
@@ -62,12 +70,59 @@ export default function ChatPanel({ onHighlightNodes, onFocusNodes }) {
     setInput(query)
   }
 
+  const handleApiKeyChange = (value) => {
+    setApiKey(value)
+    setKeyTestResult(null)
+    if (typeof window !== 'undefined') {
+      if (value.trim()) {
+        window.localStorage.setItem('gemini_api_key', value)
+      } else {
+        window.localStorage.removeItem('gemini_api_key')
+      }
+    }
+  }
+
+  const handleTestApiKey = async () => {
+    if (!apiKey.trim() || isKeyTesting) return
+    setIsKeyTesting(true)
+    setKeyTestResult(null)
+
+    const result = await validateApiKey(apiKey)
+    setKeyTestResult(result)
+    setIsKeyTesting(false)
+  }
+
   return (
     <div className="chat-panel">
       {/* Header */}
       <div className="chat-header">
         <h2 className="chat-title">Query Assistant</h2>
         <p className="chat-subtitle">Ask questions about your Order-to-Cash data</p>
+        <div className="chat-api-key-row">
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => handleApiKeyChange(e.target.value)}
+            className="chat-api-key-input"
+            placeholder="Optional: your Gemini API key"
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button
+            type="button"
+            className="chat-api-key-test-button"
+            onClick={handleTestApiKey}
+            disabled={!apiKey.trim() || isKeyTesting || loading}
+          >
+            {isKeyTesting ? 'Testing...' : 'Test API Key'}
+          </button>
+          {keyTestResult && (
+            <div className={`chat-api-key-feedback ${keyTestResult.valid ? 'valid' : 'invalid'}`}>
+              {keyTestResult.message}
+              {keyTestResult.valid && keyTestResult.model ? ` (Model: ${keyTestResult.model})` : ''}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Messages Area */}

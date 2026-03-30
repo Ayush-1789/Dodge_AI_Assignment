@@ -38,13 +38,35 @@ logger = logging.getLogger(__name__)
 # Find database and data paths
 BACKEND_DIR = Path(__file__).parent
 PROJECT_DIR = BACKEND_DIR.parent
-DATA_DIR = PROJECT_DIR / "sap-o2c-data"
 DB_DIR = BACKEND_DIR / "data"
 DB_PATH = DB_DIR / "o2c.db"
 
 # Load environment variables from backend/.env first, then project root .env.
 load_dotenv(BACKEND_DIR / ".env")
 load_dotenv(PROJECT_DIR / ".env")
+
+
+def resolve_data_dir() -> Path:
+    """Resolve source data directory across local and deployment layouts."""
+    env_override = os.environ.get("O2C_DATA_DIR") or os.environ.get("DATA_DIR")
+    if env_override:
+        return Path(env_override).expanduser().resolve()
+
+    candidates = [
+        PROJECT_DIR / "sap-o2c-data",
+        PROJECT_DIR.parent / "sap-o2c-data",
+        BACKEND_DIR / "sap-o2c-data",
+    ]
+
+    for candidate in candidates:
+        if candidate.exists() and candidate.is_dir():
+            return candidate
+
+    # Return default candidate if none exist so error messages remain predictable.
+    return candidates[0]
+
+
+DATA_DIR = resolve_data_dir()
 
 logger.info(f"Backend dir: {BACKEND_DIR}")
 logger.info(f"Project dir: {PROJECT_DIR}")
@@ -96,6 +118,12 @@ async def lifespan(app: FastAPI):
     try:
         # Initialize database if needed
         if not is_database_healthy(DB_PATH):
+            if not DATA_DIR.exists():
+                raise FileNotFoundError(
+                    "Source data directory not found. Checked: "
+                    f"{PROJECT_DIR / 'sap-o2c-data'} and {PROJECT_DIR.parent / 'sap-o2c-data'}. "
+                    "Set O2C_DATA_DIR (or DATA_DIR) to the correct path, or include sap-o2c-data in your deploy."
+                )
             logger.info("Database is missing or incomplete. Rebuilding from source files...")
             init_database(str(DB_PATH), str(DATA_DIR))
         
