@@ -18,7 +18,7 @@ export function useChat() {
       })
       return response.data
     } catch (err) {
-      const errorMsg = err.response?.data?.detail || err.message
+      const errorMsg = err.response?.data?.detail || (err.response ? err.message : 'Network error: cannot reach backend API. Check VITE_API_BASE_URL and backend status.')
       setError(errorMsg)
       console.error('Error sending message:', err)
       return null

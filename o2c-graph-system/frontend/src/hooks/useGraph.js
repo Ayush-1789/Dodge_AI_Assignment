@@ -14,7 +14,8 @@ export function useGraph() {
         setGraphData(response.data)
         setError(null)
       } catch (err) {
-        setError(err.message)
+        const errorMsg = err.response?.data?.detail || (err.response ? err.message : 'Network error: cannot reach backend API. Check VITE_API_BASE_URL and backend status.')
+        setError(errorMsg)
         console.error('Error fetching graph:', err)
       } finally {
         setLoading(false)

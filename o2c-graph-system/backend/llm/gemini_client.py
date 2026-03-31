@@ -23,14 +23,12 @@ GENERATION_CONFIG = {
     "temperature": 0.1,  # Low temp for deterministic SQL/queries
     "top_p": 0.8,
     "max_output_tokens": 2048,
-    "response_mime_type": "application/json",
 }
 
 GENERATION_CONFIG_SYNTHESIS = {
     "temperature": 0.5,  # Higher temp for more natural synthesis
     "top_p": 0.9,
     "max_output_tokens": 2048,
-    "response_mime_type": "application/json",
 }
 
 
@@ -297,23 +295,40 @@ Result data: {json.dumps(query_result, default=str)[:4000]}
         in GenerativeModel.__init__. In that case, return a model without it and
         signal callers to inline instructions into the prompt payload.
         """
-        try:
-            model = genai.GenerativeModel(
-                model_name=self.model_name,
-                system_instruction=system_prompt,
-                generation_config=generation_config,
-            )
-            return model, False
-        except TypeError as exc:
-            if "system_instruction" not in str(exc):
+        inline_system_prompt = False
+        active_config = dict(generation_config or {})
+
+        for _ in range(4):
+            kwargs: Dict[str, Any] = {
+                "model_name": self.model_name,
+                "generation_config": active_config,
+            }
+            if not inline_system_prompt:
+                kwargs["system_instruction"] = system_prompt
+
+            try:
+                model = genai.GenerativeModel(**kwargs)
+                return model, inline_system_prompt
+            except Exception as exc:
+                message = str(exc)
+
+                if (not inline_system_prompt) and "system_instruction" in message:
+                    logger.warning(
+                        "Gemini %s model init fallback: SDK does not support system_instruction; inlining prompt text",
+                        stage_name,
+                    )
+                    inline_system_prompt = True
+                    continue
+
+                if "response_mime_type" in message and "response_mime_type" in active_config:
+                    logger.warning(
+                        "Gemini %s model init fallback: SDK does not support response_mime_type; using plain-text mode",
+                        stage_name,
+                    )
+                    active_config = dict(active_config)
+                    active_config.pop("response_mime_type", None)
+                    continue
+
                 raise
 
-            logger.warning(
-                "Gemini %s model init fallback: SDK does not support system_instruction; inlining prompt text",
-                stage_name,
-            )
-            model = genai.GenerativeModel(
-                model_name=self.model_name,
-                generation_config=generation_config,
-            )
-            return model, True
+        raise RuntimeError("Unable to initialize Gemini model with compatible settings")
